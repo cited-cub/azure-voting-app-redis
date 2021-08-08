@@ -1,0 +1,34 @@
+name: Docker Build and Push, Kubernetes Deploy
+
+on:
+  push:
+    branches:
+    - master
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Docker Login
+      uses: docker/login-action@v1.10.0
+      with:
+        registry: ${{ secrets.ACR_URL }}
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
+        
+    - name: Kubernetes set context
+      uses: Azure/k8s-set-context@v1.1
+      with:
+        method: kubeconfig
+        kubeconfig: ${{ secrets.KUBE_CONFIG }}
+        
+    - name: Build the Docker image
+      run: |
+        docker build --tag ${{ secrets.ACR_URL }}/azure-vote-front:${{ github.sha }} .
+        docker push ${{ secrets.ACR_URL }}/azure-vote-front:${{ github.sha }}
+        kubectl apply -f azure-vote-all-in-one-redis.yml
