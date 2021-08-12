@@ -1,0 +1,19 @@
+apiVersion : apps/v1
+kind: Deployment
+metadata:
+  name: "kicasaks-e501"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: "kicasaks-e501"
+  template:
+    metadata:
+      labels:
+        app: "kicasaks-e501"
+    spec:
+      containers:
+        - name: "kicasaks-e501"
+          image: "bemybaby.azurecr.io/kicasaks"
+          ports:
+          - containerPort: 80
