@@ -1,0 +1,50 @@
+on: [push]
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    
+    - uses: azure/docker-login@v1
+      with:
+        login-server: bemybaby.azurecr.io
+        username: ${{ secrets.acr_bemybaby_username }}
+        password: ${{ secrets.acr_bemybaby_password }}
+    
+    - name: Build and push image to ACR
+      id: build-image
+      run: |
+        docker build "$GITHUB_WORKSPACE/azure-vote" -f  "azure-vote/Dockerfile" -t bemybaby.azurecr.io/kicasaks:${{ github.sha }} --label dockerfile-path=azure-vote/Dockerfile
+        docker push bemybaby.azurecr.io/kicasaks:${{ github.sha }}
+    
+    - uses: azure/k8s-set-context@v1
+      with:
+         kubeconfig: ${{ secrets.aks_kicasaks_kubeConfig }}
+      id: login
+    
+    - name: Create namespace
+      run: |
+        namespacePresent=`kubectl get namespace | grep kicasaks86fa | wc -l`
+        if [ $namespacePresent -eq 0 ]
+        then
+            echo `kubectl create namespace kicasaks86fa`
+        fi
+
+    - uses: azure/k8s-create-secret@v1
+      with:
+        namespace: kicasaks86fa
+        container-registry-url: bemybaby.azurecr.io
+        container-registry-username: ${{ secrets.acr_bemybaby_username }}
+        container-registry-password: ${{ secrets.acr_bemybaby_password }}
+        secret-name: kicasaksdockerauth
+       
+    - uses: azure/k8s-deploy@v1.2
+      with:
+        namespace: kicasaks86fa
+        manifests: |
+          manifests/deployment.yml
+          manifests/service.yml
+        images: |
+          bemybaby.azurecr.io/kicasaks:${{ github.sha }}
+        imagepullsecrets: |
+          kicasaksdockerauth
